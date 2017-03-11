@@ -120,9 +120,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Comics\Comics.csproj">
+    <ProjectReference Include="..\Comics\Comics.Domain.csproj">
       <Project>{c3cb728d-af71-465a-8bf8-25335f326455}</Project>
-      <Name>Comics</Name>
+      <Name>Comics.Domain</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

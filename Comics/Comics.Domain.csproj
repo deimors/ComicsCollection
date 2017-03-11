@@ -66,14 +66,19 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Domain\Aggregates\IssuesAggregate.cs" />
-    <Compile Include="Domain\Commands\IssuesCommands.cs" />
-    <Compile Include="Domain\Entities\Issue.cs" />
-    <Compile Include="Domain\Events\IssuesEvents.cs" />
-    <Compile Include="Domain\Exceptions\IssuesExceptions.cs" />
-    <Compile Include="Domain\Values\CollectionIdentifier.cs" />
-    <Compile Include="Domain\Values\IssueIdentifier.cs" />
-    <Compile Include="Domain\Values\IssueTitle.cs" />
+    <Compile Include="Aggregates\CollectionsAggregate.cs" />
+    <Compile Include="Aggregates\IssuesAggregate.cs" />
+    <Compile Include="Commands\IssuesCommands.cs" />
+    <Compile Include="Entities\Collection.cs" />
+    <Compile Include="Entities\Issue.cs" />
+    <Compile Include="Events\CollectionsEvents.cs" />
+    <Compile Include="Events\IssuesEvents.cs" />
+    <Compile Include="Exceptions\IssuesExceptions.cs" />
+    <Compile Include="Values\AuthorIdentifier.cs" />
+    <Compile Include="Values\AuthorName.cs" />
+    <Compile Include="Values\CollectionIdentifier.cs" />
+    <Compile Include="Values\IssueIdentifier.cs" />
+    <Compile Include="Values\IssueTitle.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -86,9 +91,8 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="API\" />
-    <Folder Include="Domain\Factories\" />
-    <Folder Include="Domain\Repositories\" />
+    <Folder Include="Factories\" />
+    <Folder Include="Repositories\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
