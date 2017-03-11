@@ -1,9 +1,11 @@
 ﻿using Comics.Domain.Aggregates;
 using Comics.Domain.Commands;
 using Comics.Domain.Events;
+using Comics.Domain.Values;
 using Core.CQS;
 using Core.Entities;
 using System.Collections.Generic;
+using System.Reactive;
 
 namespace Comics.API.AggregateWrappers
 {
@@ -11,13 +13,13 @@ namespace Comics.API.AggregateWrappers
 	{
 		public IssuesAggregateWrapper(IEntityContext context, IssuesAggregate aggregate)
 		{
-			context.HandleCommand<IssuesCommands.SetTitle>(command => HandleSetTitle(aggregate, command));
+			context.HandleCommand<IssuesCommands.SetTitle, Unit>(command => HandleSetTitle(aggregate, command));
 			context.ApplyEvent<IssuesEvents.TitleSet>(command => ApplyTitleSet(aggregate, command));
 
-			context.HandleCommand<IssuesCommands.Create>(command => HandleCreate(aggregate, command));
+			context.HandleCommand<IssuesCommands.Create, IssueIdentifier>(command => HandleCreate(aggregate, command));
 			context.ApplyEvent<IssuesEvents.Created>(command => ApplyCreate(aggregate, command));
 
-			context.HandleCommand<IssuesCommands.Destroy>(command => HandleDestroy(aggregate, command));
+			context.HandleCommand<IssuesCommands.Destroy, Unit>(command => HandleDestroy(aggregate, command));
 			context.ApplyEvent<IssuesEvents.Destroyed>(command => ApplyDestroy(aggregate, command));
 		}
 

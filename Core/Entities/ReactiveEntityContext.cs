@@ -28,9 +28,9 @@ namespace Core.Entities
 		void IDisposable.Dispose()
 			=> _subscriptions.Apply(s => s.Dispose());
 
-		void IEntityContext.HandleCommand<TCommand>(Func<TCommand, IEnumerable<IEvent>> commandHandler)
+		void IEntityContext.HandleCommand<TCommand, TResult>(Func<TCommand, IEnumerable<IEvent>> commandHandler)
 			=> _context.Commands
-				.OfType<TCommand>()
+				.OfType<ObservableCommand<TCommand, TResult>>()
 				.Subscribe(command => HandleCommandTransaction(command, commandHandler))
 				.AddTo(_subscriptions);
 		
@@ -47,18 +47,22 @@ namespace Core.Entities
 				.Subscribe(@event => HandleExceptions(() => eventHandler(@event)))
 				.AddTo(_subscriptions);
 
-		private void HandleCommandTransaction<TCommand>(TCommand command, Func<TCommand, IEnumerable<IEvent>> commandHandler)
+		private void HandleCommandTransaction<TCommand, TResult>(ObservableCommand<TCommand, TResult> command, Func<TCommand, IEnumerable<IEvent>> commandHandler)
+			where TCommand : ICommand
 		{
 			var transacted = new List<IEvent>();
 
 			try
 			{
-				commandHandler(command).Apply(@event => transacted.Add(@event));
+				commandHandler(command.Command).Apply(@event => transacted.Add(@event));
+				transacted.Apply(command.Events.OnNext);
+				command.Events.OnCompleted();
 				transacted.Apply(_context.EventsOut.OnNext);
 			}
 			catch (Exception error)
 			{
 				transacted.AsEnumerable().Reverse().Apply(_rollbackSubject.OnNext);
+				command.Events.OnError(error);
 				_context.EventsOut.OnError(error);
 			}
 		}

@@ -6,7 +6,7 @@ namespace Core.CQS
 	{
 		IObservable<IEvent> EventsIn { get; }
 		IObserver<IEvent> EventsOut { get; }
-		IObservable<ICommand> Commands { get; }
+		IObservable<IObservableCommand> Commands { get; }
 		IObservable<IQuery> Queries { get; }
 	}
 }

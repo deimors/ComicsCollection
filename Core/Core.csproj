@@ -62,10 +62,14 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CQS\CQSDispatcher.cs" />
     <Compile Include="CQS\ICommand.cs" />
     <Compile Include="CQS\ICQSContext.cs" />
+    <Compile Include="CQS\ICQSDispatcher.cs" />
     <Compile Include="CQS\IEvent.cs" />
+    <Compile Include="CQS\IEventBus.cs" />
     <Compile Include="CQS\IQuery.cs" />
+    <Compile Include="CQS\ObservableCommand.cs" />
     <Compile Include="Entities\IEntityContext.cs" />
     <Compile Include="Entities\ReactiveEntityContext.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />
