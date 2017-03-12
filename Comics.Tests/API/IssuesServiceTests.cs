@@ -1,22 +1,20 @@
-﻿using System;
-using System.Text;
-using System.Collections.Generic;
-using Xunit;
-using Microsoft.Reactive.Testing;
-using FakeItEasy;
+﻿using Comics.API.AggregateRegistrars;
+using Comics.API.Services;
+using Comics.Domain.Aggregates;
+using Comics.Domain.Events;
+using Comics.Domain.Exceptions;
+using Comics.Domain.Values;
 using Core.CQS;
-using Comics.API.AggregateWrappers;
 using Core.Entities;
 using Core.Extensions;
-using Comics.Domain.Aggregates;
-using Comics.API.Services;
-using Comics.Domain.Values;
-using System.Reactive.Concurrency;
+using FakeItEasy;
+using Microsoft.Reactive.Testing;
 using Ploeh.AutoFixture;
 using Ploeh.AutoFixture.AutoFakeItEasy;
 using Ploeh.AutoFixture.Xunit2;
-using Comics.Domain.Events;
-using Comics.Domain.Exceptions;
+using System;
+using System.Reactive.Concurrency;
+using Xunit;
 
 namespace Comics.Tests.API
 {
@@ -48,7 +46,7 @@ namespace Comics.Tests.API
 			public void Customize(IFixture fixture)
 			{
 				fixture.Freeze<IssuesAggregate>();
-				fixture.Freeze<IssuesAggregateWrapper>();
+				fixture.Freeze<IssuesAggregateRegistrar>();
 			}
 		}
 

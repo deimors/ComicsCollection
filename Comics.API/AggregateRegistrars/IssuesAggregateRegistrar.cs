@@ -7,11 +7,11 @@ using Core.Entities;
 using System.Collections.Generic;
 using System.Reactive;
 
-namespace Comics.API.AggregateWrappers
+namespace Comics.API.AggregateRegistrars
 {
-	public class IssuesAggregateWrapper
+	public class IssuesAggregateRegistrar
 	{
-		public IssuesAggregateWrapper(IEntityContext context, IssuesAggregate aggregate)
+		public IssuesAggregateRegistrar(IEntityContext context, IssuesAggregate aggregate)
 		{
 			context.HandleCommand<IssuesCommands.SetTitle, Unit>(command => HandleSetTitle(aggregate, command));
 			context.ApplyEvent<IssuesEvents.TitleSet>(command => ApplyTitleSet(aggregate, command));
