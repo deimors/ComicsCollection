@@ -16,15 +16,11 @@ namespace Core.CQS
 
 		public IObserver<IEvent> EventsOut => _eventsOutSubject;
 
-		public IObservable<IQuery> Queries
-		{
-			get
-			{
-				throw new NotImplementedException();
-			}
-		}
+		public IObservable<IObservableQuery> Queries => _queriesSubject;
 
 		private readonly Subject<IObservableCommand> _commandsSubject = new Subject<IObservableCommand>();
+
+		private readonly Subject<IObservableQuery> _queriesSubject = new Subject<IObservableQuery>();
 
 		private readonly Subject<IEvent> _eventsOutSubject = new Subject<IEvent>();
 

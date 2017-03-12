@@ -71,6 +71,7 @@
     <Compile Include="CQS\IEventBus.cs" />
     <Compile Include="CQS\IQuery.cs" />
     <Compile Include="CQS\ObservableCommand.cs" />
+    <Compile Include="CQS\ObservableQuery.cs" />
     <Compile Include="Entities\IEntityContext.cs" />
     <Compile Include="Entities\ReactiveEntityContext.cs" />
     <Compile Include="Extensions\EnumerableExtensions.cs" />

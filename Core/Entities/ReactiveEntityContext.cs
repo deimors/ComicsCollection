@@ -34,10 +34,10 @@ namespace Core.Entities
 				.Subscribe(command => HandleCommandTransaction(command, commandHandler))
 				.AddTo(_subscriptions);
 		
-		void IEntityContext.HandleQuery<TQuery>(Action<TQuery> queryHandler)
+		void IEntityContext.HandleQuery<TQuery, TResult>(Func<TQuery, TResult> queryHandler)
 			=> _context.Queries
-				.OfType<TQuery>()
-				.Subscribe(queryHandler)
+				.OfType<ObservableQuery<TQuery, TResult>>()
+				.Subscribe(query => HandleQuery(query, queryHandler))
 				.AddTo(_subscriptions);
 
 		void IEntityContext.ApplyEvent<TEvent>(Action<TEvent> eventHandler)
@@ -63,6 +63,20 @@ namespace Core.Entities
 			{
 				transacted.AsEnumerable().Reverse().Apply(_rollbackSubject.OnNext);
 				command.Events.OnError(error);
+				_context.EventsOut.OnError(error);
+			}
+		}
+
+		private void HandleQuery<TQuery, TResult>(ObservableQuery<TQuery, TResult> query, Func<TQuery, TResult> queryHandler)
+		{
+			try
+			{
+				query.Result.OnNext(queryHandler(query.Query));
+				query.Result.OnCompleted();
+			}
+			catch (Exception error)
+			{
+				query.Result.OnError(error);
 				_context.EventsOut.OnError(error);
 			}
 		}
