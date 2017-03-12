@@ -66,6 +66,7 @@
     <Compile Include="CQS\ICommand.cs" />
     <Compile Include="CQS\ICQSContext.cs" />
     <Compile Include="CQS\ICQSDispatcher.cs" />
+    <Compile Include="CQS\IDispatcher.cs" />
     <Compile Include="CQS\IEvent.cs" />
     <Compile Include="CQS\IEventBus.cs" />
     <Compile Include="CQS\IQuery.cs" />

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Core.CQS
 {
-	public class CQSDispatcher : ICQSDispatcher, ICQSContext
+	public class CQSDispatcher : ICQSDispatcher, ICQSContext, IDispatcher
 	{
 		public IObservable<IObservableCommand> Commands => _commandsSubject;
 

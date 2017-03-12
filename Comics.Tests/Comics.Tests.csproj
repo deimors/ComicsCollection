@@ -42,6 +42,10 @@
       <HintPath>..\packages\FakeItEasy.3.0.0\lib\net40\FakeItEasy.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Microsoft.Reactive.Testing, Version=3.0.1000.0, Culture=neutral, PublicKeyToken=94bc3704cddfc263, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Reactive.Testing.3.1.1\lib\net45\Microsoft.Reactive.Testing.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Option, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Option.3.0.1\lib\Net35\Option.dll</HintPath>
       <Private>True</Private>
@@ -113,6 +117,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="API\IssuesServiceTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -120,14 +125,20 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Comics.API\Comics.API.csproj">
+      <Project>{F4977582-E965-4620-9BC4-6843BCED02FE}</Project>
+      <Name>Comics.API</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Comics\Comics.Domain.csproj">
       <Project>{c3cb728d-af71-465a-8bf8-25335f326455}</Project>
       <Name>Comics.Domain</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Core\Core.csproj">
+      <Project>{64CB55DE-E269-4BFF-B8D9-2C8AA0C4BFEA}</Project>
+      <Name>Core</Name>
+    </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="API\" />
-  </ItemGroup>
+  <ItemGroup />
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
       <ItemGroup>
