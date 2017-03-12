@@ -11,6 +11,8 @@ using Xunit;
 using System.Reactive.Subjects;
 using FakeItEasy;
 using Ploeh.AutoFixture.AutoFakeItEasy;
+using System.Reactive;
+using System.Reactive.Linq;
 
 namespace Core.Tests.Entities
 {
@@ -27,11 +29,11 @@ namespace Core.Tests.Entities
 		public MockCQSContext(IFixture fixture)
 		{
 			EventsOut.Subscribe(fixture.Freeze<IObserver<IEvent>>());
-			fixture.Inject<IObserver<ICommand>>(Commands);
+			fixture.Inject<IObserver<IObservableCommand>>(Commands);
 		}
 
-		public ISubject<ICommand> Commands { get; } = new Subject<ICommand>();
-		IObservable<ICommand> ICQSContext.Commands => Commands;
+		public ISubject<IObservableCommand> Commands { get; } = new Subject<IObservableCommand>();
+		IObservable<IObservableCommand> ICQSContext.Commands => Commands;
 
 		public ISubject<IEvent> EventsIn { get; } = new Subject<IEvent>();
 		IObservable<IEvent> ICQSContext.EventsIn => EventsIn;
@@ -57,7 +59,7 @@ namespace Core.Tests.Entities
 		}
 	}
 
-	public class CommandHandlerCustomization<TCommand> : ICustomization where TCommand : ICommand
+	public class CommandHandlerCustomization<TCommand, TResult> : ICustomization where TCommand : ICommand
 	{
 		private readonly Func<TCommand, IEnumerable<IEvent>> _handler;
 
@@ -70,7 +72,7 @@ namespace Core.Tests.Entities
 		{
 			var sut = fixture.Create<IEntityContext>();
 
-			sut.HandleCommand(_handler);
+			sut.HandleCommand<TCommand, TResult>(_handler);
 
 			fixture.Inject(_handler);
 		}
@@ -125,6 +127,14 @@ namespace Core.Tests.Entities
 			throw new Exception();
 		}
 
+		public static void SendTestCommand(IObserver<IObservableCommand> commandsObserver)
+			=> commandsObserver.OnNext(
+				new ObservableCommand<TestCommand, Unit>(
+					new TestCommand(), 
+					e => e.Select(_ => Unit.Default)
+				)
+			);
+
 		public class WhenMockCommandHandlerRegistered
 		{
 			public class ArrangeAttribute : AutoDataAttribute
@@ -132,20 +142,20 @@ namespace Core.Tests.Entities
 				public ArrangeAttribute() : base(
 					new Fixture()
 						.Customize(new BaseCustomization())
-						.Customize(new CommandHandlerCustomization<TestCommand>(A.Fake<Func<TestCommand, IEnumerable<IEvent>>>()))
+						.Customize(new CommandHandlerCustomization<TestCommand, Unit>(A.Fake<Func<TestCommand, IEnumerable<IEvent>>>()))
 				)
 				{ }
 			}
 
 			[Theory, Arrange]
-			public void WhenTestCommandSentThenMockHandlerCalled(IObserver<ICommand> commandObserver, Func<TestCommand, IEnumerable<IEvent>> mockHandler)
+			public void AfterSendTestCommand_MockHandlerCalled(IObserver<IObservableCommand> commandsObserver, Func<TestCommand, IEnumerable<IEvent>> mockHandler)
 			{
-				commandObserver.OnNext(new TestCommand());
+				SendTestCommand(commandsObserver);
 
 				A.CallTo(() => mockHandler.Invoke(A<TestCommand>._)).MustHaveHappened(Repeated.Exactly.Once);
 			}
 		}
-
+		
 		public class WhenTestCommandHandlerRegistered
 		{
 
@@ -154,23 +164,23 @@ namespace Core.Tests.Entities
 				public ArrangeAttribute() : base(
 					new Fixture()
 						.Customize(new BaseCustomization())
-						.Customize(new CommandHandlerCustomization<TestCommand>(TestCommandHandler))
+						.Customize(new CommandHandlerCustomization<TestCommand, Unit>(TestCommandHandler))
 				)
 				{ }
 			}
 
 			[Theory, Arrange]
-			public void WhenTestCommandSentThenTestEventObserved(IObserver<ICommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void AfterSendTestCommand_TestEventObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
 			{
-				commandsObserver.OnNext(new TestCommand());
+				SendTestCommand(commandsObserver);
 
 				A.CallTo(() => eventsOutObserver.OnNext(A<TestEvent>._)).MustHaveHappened(Repeated.Exactly.Once);
 			}
 
 			[Theory, Arrange]
-			public void WhenTestCommandSentThenErrorNotObserved(IObserver<ICommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void AfterSendTestCommand_ErrorNotObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
 			{
-				commandsObserver.OnNext(new TestCommand());
+				SendTestCommand(commandsObserver);
 
 				A.CallTo(() => eventsOutObserver.OnError(A<Exception>._)).MustNotHaveHappened();
 			}
@@ -184,23 +194,23 @@ namespace Core.Tests.Entities
 				public ArrangeAttribute() : base(
 					new Fixture()
 						.Customize(new BaseCustomization())
-						.Customize(new CommandHandlerCustomization<TestCommand>(ErrorCommandHandler))
+						.Customize(new CommandHandlerCustomization<TestCommand, Unit>(ErrorCommandHandler))
 				)
 				{ }
 			}
 
 			[Theory, Arrange]
-			public void WhenTestCommandSentThenTestEventNotObserved(IObserver<ICommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void AfterSendTestCommand_TestEventNotObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
 			{
-				commandsObserver.OnNext(new TestCommand());
+				SendTestCommand(commandsObserver);
 
 				A.CallTo(() => eventsOutObserver.OnNext(A<TestEvent>._)).MustNotHaveHappened();
 			}
 
 			[Theory, Arrange]
-			public void WhenTestCommandSentThenErrorObserved(IObserver<ICommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void AfterSendTestCommand_ErrorObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
 			{
-				commandsObserver.OnNext(new TestCommand());
+				SendTestCommand(commandsObserver);
 
 				A.CallTo(() => eventsOutObserver.OnError(A<Exception>._)).MustHaveHappened(Repeated.Exactly.Once);
 			}
@@ -214,23 +224,23 @@ namespace Core.Tests.Entities
 				public ArrangeAttribute() : base(
 					new Fixture()
 						.Customize(new BaseCustomization())
-						.Customize(new CommandHandlerCustomization<TestCommand>(TwiceCommandHandler))
+						.Customize(new CommandHandlerCustomization<TestCommand, Unit>(TwiceCommandHandler))
 				)
 				{ }
 			}
 
 			[Theory, Arrange]
-			public void WhenTestCommandSentThenTestEventObserved(IObserver<ICommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void AfterSendTestCommand_TestEventObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
 			{
-				commandsObserver.OnNext(new TestCommand());
+				SendTestCommand(commandsObserver);
 
 				A.CallTo(() => eventsOutObserver.OnNext(A<TestEvent>._)).MustHaveHappened(Repeated.Exactly.Twice);
 			}
 
 			[Theory, Arrange]
-			public void WhenTestCommandSentThenErrorNotObserved(IObserver<ICommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void AfterSendTestCommand_ErrorNotObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
 			{
-				commandsObserver.OnNext(new TestCommand());
+				SendTestCommand(commandsObserver);
 
 				A.CallTo(() => eventsOutObserver.OnError(A<Exception>._)).MustNotHaveHappened();
 			}
@@ -244,25 +254,25 @@ namespace Core.Tests.Entities
 				public ArrangeAttribute() : base(
 					new Fixture()
 						.Customize(new BaseCustomization())
-						.Customize(new CommandHandlerCustomization<TestCommand>(EventThenErrorCommandHandler))
+						.Customize(new CommandHandlerCustomization<TestCommand, Unit>(EventThenErrorCommandHandler))
 						.Customize(new ApplyHandlerCustomization<TestEvent.Inv>(A.Fake<Action<TestEvent.Inv>>()))
 				)
 				{ }
 			}
 
 			[Theory, Arrange]
-			public void WhenTestCommandSentThenInverseTestEventAppliedThenErrorOut(IObserver<ICommand> commandsObserver, IObserver<IEvent> eventsOutObserver, Action<TestEvent.Inv> mockApplyHandler)
+			public void AfterSendTestCommand_InverseTestEventAppliedThenErrorOut(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver, Action<TestEvent.Inv> mockApplyHandler)
 			{
-				commandsObserver.OnNext(new TestCommand());
+				SendTestCommand(commandsObserver);
 
 				A.CallTo(() => mockApplyHandler.Invoke(A<TestEvent.Inv>._)).MustHaveHappened(Repeated.Exactly.Once)
 					.Then(A.CallTo(() => eventsOutObserver.OnError(A<Exception>._)).MustHaveHappened(Repeated.Exactly.Once));
 			}
 
 			[Theory, Arrange]
-			public void WhenTestCommandSentThenOutEventNotObserved(IObserver<ICommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void AfterSendTestCommand_OutEventNotObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
 			{
-				commandsObserver.OnNext(new TestCommand());
+				SendTestCommand(commandsObserver);
 
 				A.CallTo(() => eventsOutObserver.OnNext(A<IEvent>._)).MustNotHaveHappened();
 			}
