@@ -7,6 +7,7 @@ using FakeItEasy;
 using Core.CQS;
 using Comics.API.AggregateWrappers;
 using Core.Entities;
+using Core.Extensions;
 using Comics.Domain.Aggregates;
 using Comics.API.Services;
 using Comics.Domain.Values;
@@ -15,6 +16,7 @@ using Ploeh.AutoFixture;
 using Ploeh.AutoFixture.AutoFakeItEasy;
 using Ploeh.AutoFixture.Xunit2;
 using Comics.Domain.Events;
+using Comics.Domain.Exceptions;
 
 namespace Comics.Tests.API
 {
@@ -68,9 +70,32 @@ namespace Comics.Tests.API
 			}
 		}
 
+		public class ScheduleDispatchCustomization : ICustomization
+		{
+			private readonly long[] _ticks;
+
+			public ScheduleDispatchCustomization(params long[] ticks)
+			{
+				_ticks = ticks;
+			}
+
+			public void Customize(IFixture fixture)
+			{
+				var dispatcher = fixture.Create<IDispatcher>();
+				var scheduler = fixture.Create<TestScheduler>();
+
+				_ticks.Apply(
+					tick => scheduler.Schedule(
+						TimeSpan.FromTicks(tick), 
+						() => { dispatcher.Dispatch(); }
+					)
+				);
+			}
+		}
+
 		public class WhenNewWithIssueAggregate
 		{
-			private static readonly long DispatchTick = 5;
+			private static readonly long[] DispatchTicks = new long[] { 1, 2, 3, 4 };
 			private static readonly long DisposeTick = 10;
 
 			public class ArrangeAttribute : AutoDataAttribute
@@ -79,7 +104,7 @@ namespace Comics.Tests.API
 					new Fixture()
 						.Customize(new BaseCustomization())
 						.Customize(new IssuesAggregateCustomization())
-						.Customize(new ScheduleDispatchAllCustomization(DispatchTick))
+						.Customize(new ScheduleDispatchCustomization(DispatchTicks))
 				)
 				{ }
 			}
@@ -93,17 +118,17 @@ namespace Comics.Tests.API
 				);
 
 			[Theory, Arrange]
-			public void CreateIssueAndDispatchAll_ThenReceivedIssueIdAndCompleted(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IssueTitle title)
+			public void CreateIssue_ThenReceivedIssueIdAndCompleted(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IssueTitle title)
 			{
 				var result = CreateIssue(sut, title, scheduler);
 
-				var expected = new[] { OnNext(5, (IssueIdentifier id) => true), OnCompleted<IssueIdentifier>(5) };
+				var expected = new[] { OnNext(DispatchTicks[1], (IssueIdentifier id) => true), OnCompleted<IssueIdentifier>(DispatchTicks[1]) };
 
 				ReactiveAssert.AreElementsEqual(expected, result.Messages);
 			}
 
 			[Theory, Arrange]
-			public void CreateIssueAndDispatchAll_ThenEventBusReceivedIssueCreated(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IssueTitle title, IEventBus eventBus)
+			public void CreateIssue_ThenEventBusReceivedIssueCreated(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IssueTitle title, IEventBus eventBus)
 			{
 				var result = CreateIssue(sut, title, scheduler);
 
@@ -111,11 +136,29 @@ namespace Comics.Tests.API
 			}
 
 			[Theory, Arrange]
-			public void CreateIssueAndDispatchAll_ThenEventBusReceivedIssueTitleSet(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IssueTitle title, IEventBus eventBus)
+			public void CreateIssue_ThenEventBusReceivedIssueTitleSet(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IssueTitle title, IEventBus eventBus)
 			{
 				var result = CreateIssue(sut, title, scheduler);
 
 				A.CallTo(() => eventBus.In.OnNext(A<IEvent>.That.Matches(e => e is IssuesEvents.TitleSet))).MustHaveHappened();
+			}
+
+			[Theory, Arrange]
+			public void CreateIssueWithEmptyTitle_ThenReceivedOnError(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IEventBus eventBus)
+			{
+				var result = CreateIssue(sut, new IssueTitle(string.Empty), scheduler);
+
+				var expected = new[] { OnError<IssueIdentifier>(DispatchTicks[1], ex => ex is IssuesExceptions.EmptyTitle) };
+
+				ReactiveAssert.AreElementsEqual(expected, result.Messages);
+			}
+
+			[Theory, Arrange]
+			public void CreateIssueWithEmptyTitle_ThenEventBusReceivedEmptyTitleException(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IEventBus eventBus)
+			{
+				var result = CreateIssue(sut, new IssueTitle(string.Empty), scheduler);
+
+				A.CallTo(() => eventBus.In.OnError(A<Exception>.That.Matches(e => e is IssuesExceptions.EmptyTitle))).MustHaveHappened();
 			}
 		}
 	}

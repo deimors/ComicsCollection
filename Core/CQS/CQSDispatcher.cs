@@ -38,8 +38,16 @@ namespace Core.CQS
 		{
 			_eventBus = eventBus;
 
-			_eventsOutSubject.Subscribe(e => _dispatchQueue.Enqueue(() => _eventBus.In.OnNext(e)));
-			_eventBus.Out.Subscribe(e => _dispatchQueue.Enqueue(() => _eventsInSubject.OnNext(e)));
+			BindOnDispatcher(_eventsOutSubject, _eventBus.In);
+			BindOnDispatcher(_eventBus.Out, _eventsInSubject);
+		}
+
+		private void BindOnDispatcher<T>(IObservable<T> observable, IObserver<T> observer)
+		{
+			observable.Subscribe(
+				e => _dispatchQueue.Enqueue(() => observer.OnNext(e)),
+				onError: ex => _dispatchQueue.Enqueue(() => observer.OnError(ex))
+			);
 		}
 
 		public IObservable<TResult> DispatchCommand<TCommand, TResult>(TCommand command, ResultFilter<TResult> resultFilter) where TCommand : ICommand
