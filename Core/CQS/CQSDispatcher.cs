@@ -55,6 +55,15 @@ namespace Core.CQS
 			return observableCommand.Result;
 		}
 
+		public IObservable<TResult> DispatchQuery<TQuery, TResult>(TQuery query) where TQuery : IQuery
+		{
+			var observableQuery = new ObservableQuery<TQuery, TResult>(query);
+
+			_dispatchQueue.Enqueue(() => _queriesSubject.OnNext(observableQuery));
+
+			return observableQuery.Result;
+		}
+
 		public bool Dispatch() 
 			=> InvokeOnDispatchQueue(() => _dispatchQueue.Dequeue().Invoke());
 
@@ -70,5 +79,7 @@ namespace Core.CQS
 
 			return true;
 		}
+
+		
 	}
 }

@@ -68,12 +68,15 @@
   <ItemGroup>
     <Compile Include="Aggregates\CollectionsAggregate.cs" />
     <Compile Include="Aggregates\IssuesAggregate.cs" />
+    <Compile Include="Commands\CollectionsCommands.cs" />
     <Compile Include="Commands\IssuesCommands.cs" />
     <Compile Include="Entities\Collection.cs" />
     <Compile Include="Entities\Issue.cs" />
     <Compile Include="Events\CollectionsEvents.cs" />
     <Compile Include="Events\IssuesEvents.cs" />
+    <Compile Include="Exceptions\CollectionsExceptions.cs" />
     <Compile Include="Exceptions\IssuesExceptions.cs" />
+    <Compile Include="Queries\IssuesQueries.cs" />
     <Compile Include="Values\AuthorIdentifier.cs" />
     <Compile Include="Values\AuthorName.cs" />
     <Compile Include="Values\CollectionIdentifier.cs" />

@@ -1,6 +1,7 @@
 ﻿using Comics.Domain.Commands;
 using Comics.Domain.Events;
 using Comics.Domain.Values;
+using Comics.Queries;
 using Core.CQS;
 using System;
 using System.Linq;
@@ -21,6 +22,11 @@ namespace Comics.API.Services
 			=> _dispatcher.DispatchCommand(
 				new IssuesCommands.Create(title),
 				events => events.OfType<IssuesEvents.Created>().Select(e => e.IssueId)
+			);
+
+		public IObservable<IssueTitle> GetTitle(IssueIdentifier issueId)
+			=> _dispatcher.DispatchQuery<IssuesQueries.GetTitle, IssueTitle>(
+				new IssuesQueries.GetTitle(issueId)
 			);
 	}
 }

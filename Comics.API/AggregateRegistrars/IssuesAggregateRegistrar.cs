@@ -2,6 +2,7 @@
 using Comics.Domain.Commands;
 using Comics.Domain.Events;
 using Comics.Domain.Values;
+using Comics.Queries;
 using Core.CQS;
 using Core.Entities;
 using System.Collections.Generic;
@@ -21,6 +22,8 @@ namespace Comics.API.AggregateRegistrars
 
 			context.HandleCommand<IssuesCommands.Destroy, Unit>(command => HandleDestroy(aggregate, command));
 			context.ApplyEvent<IssuesEvents.Destroyed>(command => ApplyDestroy(aggregate, command));
+
+			context.HandleQuery<IssuesQueries.GetTitle, IssueTitle>(query => HandleGetTitle(aggregate, query));
 		}
 
 		private IEnumerable<IEvent> HandleCreate(IssuesAggregate aggregate, IssuesCommands.Create command)
@@ -50,5 +53,8 @@ namespace Comics.API.AggregateRegistrars
 
 		private void ApplyTitleSet(IssuesAggregate aggregate, IssuesEvents.TitleSet @event)
 			=> aggregate.SetTitle(@event.IssueId, @event.Title);
+
+		private IssueTitle HandleGetTitle(IssuesAggregate aggregate, IssuesQueries.GetTitle query)
+			=> aggregate.GetTitle(query.IssueId);
 	}
 }

@@ -62,8 +62,10 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AggregateWrappers\IssuesAggregateWrapper.cs" />
+    <Compile Include="AggregateRegistrars\CollectionsAggregateRegistrar.cs" />
+    <Compile Include="AggregateRegistrars\IssuesAggregateRegistrar.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\CollectionsService.cs" />
     <Compile Include="Services\IssuesService.cs" />
   </ItemGroup>
   <ItemGroup>

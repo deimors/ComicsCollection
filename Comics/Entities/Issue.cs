@@ -13,7 +13,7 @@ namespace Comics.Domain.Entities
 			get { return _title; }
 			set
 			{
-				if (string.IsNullOrEmpty(value.Primary))
+				if (string.IsNullOrEmpty(value?.Primary))
 					throw new IssuesExceptions.EmptyTitle(IssueId);
 
 				_title = value;

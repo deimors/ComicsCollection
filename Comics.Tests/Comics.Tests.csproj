@@ -117,7 +117,11 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="API\CollectionsServiceTests.cs" />
     <Compile Include="API\IssuesServiceTests.cs" />
+    <Compile Include="Customizations\ScheduleDispatchAllCustomization.cs" />
+    <Compile Include="Customizations\ScheduleDispatchCustomization.cs" />
+    <Compile Include="Customizations\ServiceBaseCustomization.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

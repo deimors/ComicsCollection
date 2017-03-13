@@ -49,5 +49,17 @@ namespace Comics.Domain.Aggregates
 
 			return new IssuesEvents.TitleSet(issue.IssueId, issue.Title, oldTitle);
 		}
+
+		public IssueTitle GetTitle(IssueIdentifier issueId)
+		{
+			Issue issue;
+
+			if (!_issues.TryGetValue(issueId, out issue))
+			{
+				throw new IssuesExceptions.NotFound(issueId);
+			}
+
+			return issue.Title;
+		}
 	}
 }

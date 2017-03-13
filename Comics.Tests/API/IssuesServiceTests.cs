@@ -4,6 +4,7 @@ using Comics.Domain.Aggregates;
 using Comics.Domain.Events;
 using Comics.Domain.Exceptions;
 using Comics.Domain.Values;
+using Comics.Tests.Customizations;
 using Core.CQS;
 using Core.Entities;
 using Core.Extensions;
@@ -20,103 +21,73 @@ namespace Comics.Tests.API
 {
 	public class IssuesServiceTests : ReactiveTest
 	{
+		private static readonly long[] DispatchTicks = new long[] { 1, 2, 3, 4 };
+		private static readonly long DisposeTick = 10;
+
 		public class BaseCustomization : ICustomization
 		{
 			public void Customize(IFixture fixture)
 			{
 				fixture.Customize(new AutoFakeItEasyCustomization());
 
-				var eventBus = fixture.Create<IEventBus>();
-				fixture.Inject(eventBus);
+				fixture.Customize(new ServiceBaseCustomization());
 
-				var dispatcher = fixture.Create<CQSDispatcher>();
-				fixture.Inject<ICQSDispatcher>(dispatcher);
-				fixture.Inject<ICQSContext>(dispatcher);
-				fixture.Inject<IDispatcher>(dispatcher);
+				fixture.Customize(new ScheduleDispatchCustomization(DispatchTicks));
 
-				var context = fixture.Create<ReactiveEntityContext>();
-				fixture.Inject<IEntityContext>(context);
-
-				fixture.Freeze<TestScheduler>();
-			}
-		}
-
-		public class IssuesAggregateCustomization : ICustomization
-		{
-			public void Customize(IFixture fixture)
-			{
 				fixture.Freeze<IssuesAggregate>();
 				fixture.Freeze<IssuesAggregateRegistrar>();
+
+				fixture.Freeze<IssuesService>();
+
+				fixture.Register(() => IssueIdentifier.New());
 			}
 		}
 
-		public class ScheduleDispatchAllCustomization : ICustomization
+		public class CreateIssueCustomization : ICustomization
 		{
-			private readonly long _ticks;
-
-			public ScheduleDispatchAllCustomization(long ticks = 1)
-			{
-				_ticks = ticks;
-			}
-
 			public void Customize(IFixture fixture)
 			{
+				var sut = fixture.Create<IssuesService>();
+				
 				var dispatcher = fixture.Create<IDispatcher>();
-				var scheduler = fixture.Create<TestScheduler>();
 
-				scheduler.Schedule(TimeSpan.FromTicks(_ticks), () => { dispatcher.DispatchAll(); });
+				var title = fixture.Create<IssueTitle>();
+
+				sut.CreateIssue(title).Subscribe(issueId => fixture.Inject(issueId));
+
+				dispatcher.DispatchAll();
 			}
 		}
+		
+		public static ITestableObserver<IssueIdentifier> CreateIssue(IssuesService sut, IssueTitle title, TestScheduler scheduler)
+			=> scheduler.Start(
+				() => sut.CreateIssue(title),
+				created: 0,
+				subscribed: 0,
+				disposed: DisposeTick
+			);
 
-		public class ScheduleDispatchCustomization : ICustomization
+		public static ITestableObserver<IssueTitle> GetTitle(IssuesService sut, IssueIdentifier issueId, TestScheduler scheduler)
+			=> scheduler.Start(
+				() => sut.GetTitle(issueId),
+				created: 0,
+				subscribed: 0,
+				disposed: DisposeTick
+			);
+
+		public class WhenNew
 		{
-			private readonly long[] _ticks;
-
-			public ScheduleDispatchCustomization(params long[] ticks)
-			{
-				_ticks = ticks;
-			}
-
-			public void Customize(IFixture fixture)
-			{
-				var dispatcher = fixture.Create<IDispatcher>();
-				var scheduler = fixture.Create<TestScheduler>();
-
-				_ticks.Apply(
-					tick => scheduler.Schedule(
-						TimeSpan.FromTicks(tick), 
-						() => { dispatcher.Dispatch(); }
-					)
-				);
-			}
-		}
-
-		public class WhenNewWithIssueAggregate
-		{
-			private static readonly long[] DispatchTicks = new long[] { 1, 2, 3, 4 };
-			private static readonly long DisposeTick = 10;
-
 			public class ArrangeAttribute : AutoDataAttribute
 			{
 				public ArrangeAttribute() : base(
 					new Fixture()
 						.Customize(new BaseCustomization())
-						.Customize(new IssuesAggregateCustomization())
-						.Customize(new ScheduleDispatchCustomization(DispatchTicks))
 				)
 				{ }
 			}
 
-			public static ITestableObserver<IssueIdentifier> CreateIssue(IssuesService sut, IssueTitle title, TestScheduler scheduler)
-				=> scheduler.Start(
-					() => sut.CreateIssue(title),
-					created: 0,
-					subscribed: 0,
-					disposed: DisposeTick
-				);
-
 			[Theory, Arrange]
-			public void CreateIssue_ThenReceivedIssueIdAndCompleted(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IssueTitle title)
+			public void CreateIssue_ThenReceivedIssueIdAndCompleted(IssuesService sut, TestScheduler scheduler, IssueTitle title)
 			{
 				var result = CreateIssue(sut, title, scheduler);
 
@@ -126,7 +97,7 @@ namespace Comics.Tests.API
 			}
 
 			[Theory, Arrange]
-			public void CreateIssue_ThenEventBusReceivedIssueCreated(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IssueTitle title, IEventBus eventBus)
+			public void CreateIssue_ThenEventBusReceivedIssueCreated(IssuesService sut, TestScheduler scheduler, IssueTitle title, IEventBus eventBus)
 			{
 				var result = CreateIssue(sut, title, scheduler);
 
@@ -134,7 +105,7 @@ namespace Comics.Tests.API
 			}
 
 			[Theory, Arrange]
-			public void CreateIssue_ThenEventBusReceivedIssueTitleSet(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IssueTitle title, IEventBus eventBus)
+			public void CreateIssue_ThenEventBusReceivedIssueTitleSet(IssuesService sut, TestScheduler scheduler, IssueTitle title, IEventBus eventBus)
 			{
 				var result = CreateIssue(sut, title, scheduler);
 
@@ -142,7 +113,7 @@ namespace Comics.Tests.API
 			}
 
 			[Theory, Arrange]
-			public void CreateIssueWithEmptyTitle_ThenReceivedOnError(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IEventBus eventBus)
+			public void CreateIssueWithEmptyTitle_ThenReceivedOnError(IssuesService sut, TestScheduler scheduler, IEventBus eventBus)
 			{
 				var result = CreateIssue(sut, new IssueTitle(string.Empty), scheduler);
 
@@ -152,11 +123,52 @@ namespace Comics.Tests.API
 			}
 
 			[Theory, Arrange]
-			public void CreateIssueWithEmptyTitle_ThenEventBusReceivedEmptyTitleException(IssuesService sut, TestScheduler scheduler, IDispatcher dispatcher, IEventBus eventBus)
+			public void CreateIssueWithEmptyTitle_ThenEventBusReceivedEmptyTitleException(IssuesService sut, TestScheduler scheduler, IEventBus eventBus)
 			{
 				var result = CreateIssue(sut, new IssueTitle(string.Empty), scheduler);
 
 				A.CallTo(() => eventBus.In.OnError(A<Exception>.That.Matches(e => e is IssuesExceptions.EmptyTitle))).MustHaveHappened();
+			}
+
+			[Theory, Arrange]
+			public void GetTitle_ThenEventBusReceivedNotFoundException(IssuesService sut, TestScheduler scheduler, IEventBus eventBus, IssueIdentifier issueId)
+			{
+				var result = GetTitle(sut, issueId, scheduler);
+
+				A.CallTo(() => eventBus.In.OnError(A<Exception>.That.Matches(e => e is IssuesExceptions.NotFound))).MustHaveHappened();
+			}
+		}
+
+		public class WhenIssueCreated
+		{
+			public class ArrangeAttribute : AutoDataAttribute
+			{
+				public ArrangeAttribute() : base(
+					new Fixture()
+						.Customize(new BaseCustomization())
+						.Customize(new CreateIssueCustomization())
+				)
+				{ }
+			}
+
+			[Theory, Arrange]
+			public void GetTitle_ThenReceivedIssueTitle(IssuesService sut, TestScheduler scheduler, IssueIdentifier issueId)
+			{
+				var result = GetTitle(sut, issueId, scheduler);
+
+				var expected = new[] { OnNext<IssueTitle>(DispatchTicks[1], title => true), OnCompleted<IssueTitle>(DispatchTicks[1]) };
+
+				ReactiveAssert.AreElementsEqual(expected, result.Messages);
+			}
+
+			[Theory, Arrange]
+			public void GetTitleForDifferentId_ThenReceivedNotFoundException(IssuesService sut, TestScheduler scheduler)
+			{
+				var result = GetTitle(sut, IssueIdentifier.New(), scheduler);
+
+				var expected = new[] { OnError<IssueTitle>(DispatchTicks[1], ex => ex is IssuesExceptions.NotFound) };
+
+				ReactiveAssert.AreElementsEqual(expected, result.Messages);
 			}
 		}
 	}
