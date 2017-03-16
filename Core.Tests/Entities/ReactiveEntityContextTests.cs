@@ -7,6 +7,7 @@ using Ploeh.AutoFixture.Xunit2;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
@@ -26,26 +27,44 @@ namespace Core.Tests.Entities
 		public IEvent Inverse => new Inv();
 	}
 
-	public class MockCQSContext : ICQSContext
+	public class MockCQSContextCustomization : ICustomization
 	{
-		public MockCQSContext(IFixture fixture)
+		public void Customize(IFixture fixture)
 		{
-			EventsOut.Subscribe(fixture.Freeze<IObserver<IEvent>>());
-			fixture.Inject<IObserver<IObservableCommand>>(Commands);
-			fixture.Inject<IObserver<IObservableQuery>>(Queries);
+			var context = fixture.Freeze<ICQSContext>();
+
+			CustomizeObserver(fixture, () => context.EventsOut);
+
+			CustomizeObservable(fixture, () => context.EventsIn);
+
+			CustomizeObservable(fixture, () => context.Commands);
+
+			CustomizeObservable(fixture, () => context.Queries);
 		}
 
-		public ISubject<IObservableCommand> Commands { get; } = new Subject<IObservableCommand>();
-		IObservable<IObservableCommand> ICQSContext.Commands => Commands;
+		private static void CustomizeObservable<T>(IFixture fixture, Expression<Func<IObservable<T>>> property)
+		{
+			var eventsIn = new Subject<T>();
 
-		public ISubject<IEvent> EventsIn { get; } = new Subject<IEvent>();
-		IObservable<IEvent> ICQSContext.EventsIn => EventsIn;
+			A.CallTo(property).Returns(eventsIn);
 
-		public ISubject<IEvent> EventsOut { get; } = new Subject<IEvent>();
-		IObserver<IEvent> ICQSContext.EventsOut => EventsOut;
+			fixture.Inject<IObserver<T>>(eventsIn);
+		}
+		
+		private static void CustomizeObserver<T>(IFixture fixture, Expression<Func<IObserver<T>>> property)
+		{
+			var subject = new Subject<T>();
 
-		public ISubject<IObservableQuery> Queries { get; } = new Subject<IObservableQuery>();
-		IObservable<IObservableQuery> ICQSContext.Queries => Queries;
+			A.CallTo(property).Returns(subject);
+
+			var handler = A.Fake<Action<T>>();
+			var errorHandler = A.Fake<Action<Exception>>();
+
+			subject.Subscribe(handler, errorHandler);
+
+			fixture.Inject(handler);
+			fixture.Inject(errorHandler);
+		}
 	}
 
 	public class BaseCustomization : ICustomization
@@ -53,9 +72,7 @@ namespace Core.Tests.Entities
 		public void Customize(IFixture fixture)
 		{
 			fixture.Customize(new AutoFakeItEasyCustomization());
-
-			var context = fixture.Freeze<MockCQSContext>();
-			fixture.Inject<ICQSContext>(context);
+			fixture.Customize(new MockCQSContextCustomization());
 
 			var sut = fixture.Freeze<ReactiveEntityContext>();
 			fixture.Inject<IEntityContext>(sut);
@@ -210,19 +227,19 @@ namespace Core.Tests.Entities
 			}
 
 			[Theory, Arrange]
-			public void SendTestCommand_ThenTestEventObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void SendTestCommand_ThenTestEventObserved(IObserver<IObservableCommand> commandsObserver, Action<IEvent> eventsOutHandler)
 			{
 				SendTestCommand(commandsObserver);
 
-				A.CallTo(() => eventsOutObserver.OnNext(A<TestEvent>._)).MustHaveHappened(Repeated.Exactly.Once);
+				A.CallTo(() => eventsOutHandler.Invoke(A<TestEvent>._)).MustHaveHappened(Repeated.Exactly.Once);
 			}
 
 			[Theory, Arrange]
-			public void SendTestCommand_ThenErrorNotObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void SendTestCommand_ThenErrorNotObserved(IObserver<IObservableCommand> commandsObserver, Action<Exception> eventsOutErrorHandler)
 			{
 				SendTestCommand(commandsObserver);
 
-				A.CallTo(() => eventsOutObserver.OnError(A<Exception>._)).MustNotHaveHappened();
+				A.CallTo(() => eventsOutErrorHandler.Invoke(A<Exception>._)).MustNotHaveHappened();
 			}
 		}
 
@@ -239,19 +256,19 @@ namespace Core.Tests.Entities
 			}
 
 			[Theory, Arrange]
-			public void SendTestCommand_ThenTestEventNotObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void SendTestCommand_ThenTestEventNotObserved(IObserver<IObservableCommand> commandsObserver, Action<IEvent> eventsOutHandler)
 			{
 				SendTestCommand(commandsObserver);
 
-				A.CallTo(() => eventsOutObserver.OnNext(A<TestEvent>._)).MustNotHaveHappened();
+				A.CallTo(() => eventsOutHandler.Invoke(A<TestEvent>._)).MustNotHaveHappened();
 			}
 
 			[Theory, Arrange]
-			public void SendTestCommand_ThenErrorObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void SendTestCommand_ThenErrorObserved(IObserver<IObservableCommand> commandsObserver, Action<Exception> eventsOutErrorHandler)
 			{
 				SendTestCommand(commandsObserver);
 
-				A.CallTo(() => eventsOutObserver.OnError(A<Exception>._)).MustHaveHappened(Repeated.Exactly.Once);
+				A.CallTo(() => eventsOutErrorHandler.Invoke(A<Exception>._)).MustHaveHappened(Repeated.Exactly.Once);
 			}
 		}
 
@@ -268,19 +285,19 @@ namespace Core.Tests.Entities
 			}
 
 			[Theory, Arrange]
-			public void SendTestCommand_ThenTestEventObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void SendTestCommand_ThenTestEventObserved(IObserver<IObservableCommand> commandsObserver, Action<IEvent> eventsOutHandler)
 			{
 				SendTestCommand(commandsObserver);
 
-				A.CallTo(() => eventsOutObserver.OnNext(A<TestEvent>._)).MustHaveHappened(Repeated.Exactly.Twice);
+				A.CallTo(() => eventsOutHandler.Invoke(A<TestEvent>._)).MustHaveHappened(Repeated.Exactly.Twice);
 			}
 
 			[Theory, Arrange]
-			public void SendTestCommand_ThenErrorNotObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void SendTestCommand_ThenErrorNotObserved(IObserver<IObservableCommand> commandsObserver, Action<Exception> eventsOutErrorHandler)
 			{
 				SendTestCommand(commandsObserver);
 
-				A.CallTo(() => eventsOutObserver.OnError(A<Exception>._)).MustNotHaveHappened();
+				A.CallTo(() => eventsOutErrorHandler.Invoke(A<Exception>._)).MustNotHaveHappened();
 			}
 		}
 
@@ -299,20 +316,20 @@ namespace Core.Tests.Entities
 			}
 
 			[Theory, Arrange]
-			public void SendTestCommand_ThenInverseTestEventAppliedThenErrorOut(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver, Action<TestEvent.Inv> mockApplyHandler)
+			public void SendTestCommand_ThenInverseTestEventAppliedThenErrorOut(IObserver<IObservableCommand> commandsObserver, Action<Exception> eventsOutErrorHandler, Action<TestEvent.Inv> mockApplyHandler)
 			{
 				SendTestCommand(commandsObserver);
 
 				A.CallTo(() => mockApplyHandler.Invoke(A<TestEvent.Inv>._)).MustHaveHappened(Repeated.Exactly.Once)
-					.Then(A.CallTo(() => eventsOutObserver.OnError(A<Exception>._)).MustHaveHappened(Repeated.Exactly.Once));
+					.Then(A.CallTo(() => eventsOutErrorHandler.Invoke(A<Exception>._)).MustHaveHappened(Repeated.Exactly.Once));
 			}
 
 			[Theory, Arrange]
-			public void SendTestCommand_ThenOutEventNotObserved(IObserver<IObservableCommand> commandsObserver, IObserver<IEvent> eventsOutObserver)
+			public void SendTestCommand_ThenOutEventNotObserved(IObserver<IObservableCommand> commandsObserver, Action<IEvent> eventsOutHandler)
 			{
 				SendTestCommand(commandsObserver);
 
-				A.CallTo(() => eventsOutObserver.OnNext(A<IEvent>._)).MustNotHaveHappened();
+				A.CallTo(() => eventsOutHandler.Invoke(A<IEvent>._)).MustNotHaveHappened();
 			}
 		}
 
@@ -351,7 +368,7 @@ namespace Core.Tests.Entities
 			}
 
 			[Theory, Arrange]
-			public void SendTestQuery_ThenTestResultObserved(IObserver<IObservableQuery> queriesObserver, IObserver<IEvent> eventsOutObserver, IObserver<TestResult> resultObserver)
+			public void SendTestQuery_ThenTestResultObserved(IObserver<IObservableQuery> queriesObserver, IObserver<TestResult> resultObserver)
 			{
 				SendTestQuery(queriesObserver, resultObserver);
 
@@ -359,7 +376,7 @@ namespace Core.Tests.Entities
 			}
 
 			[Theory, Arrange]
-			public void SendTestQuery_ThenErrorNotObserved(IObserver<IObservableQuery> queriesObserver, IObserver<IEvent> eventsOutObserver, IObserver<TestResult> resultObserver)
+			public void SendTestQuery_ThenErrorNotObserved(IObserver<IObservableQuery> queriesObserver, IObserver<TestResult> resultObserver)
 			{
 				SendTestQuery(queriesObserver, resultObserver);
 
@@ -381,7 +398,7 @@ namespace Core.Tests.Entities
 			}
 
 			[Theory, Arrange]
-			public void SendTestQuery_ThenTestResultNotObserved(IObserver<IObservableQuery> queriesObserver, IObserver<IEvent> eventsOutObserver, IObserver<TestResult> resultObserver)
+			public void SendTestQuery_ThenTestResultNotObserved(IObserver<IObservableQuery> queriesObserver, IObserver<TestResult> resultObserver)
 			{
 				SendTestQuery(queriesObserver, resultObserver);
 
@@ -389,7 +406,7 @@ namespace Core.Tests.Entities
 			}
 
 			[Theory, Arrange]
-			public void SendTestQuery_ThenErrorObserved(IObserver<IObservableQuery> queriesObserver, IObserver<IEvent> eventsOutObserver, IObserver<TestResult> resultObserver)
+			public void SendTestQuery_ThenErrorObserved(IObserver<IObservableQuery> queriesObserver, IObserver<TestResult> resultObserver)
 			{
 				SendTestQuery(queriesObserver, resultObserver);
 
